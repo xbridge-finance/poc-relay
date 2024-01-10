@@ -1,10 +1,8 @@
-import * as fs from 'fs'
-import * as snarkjs from 'snarkjs'
 import { assert } from "chai";
 import { ethers } from "hardhat";
 import { buildMimcSponge, mimcSpongecontract } from 'circomlibjs'
 import { Verifier, ZKTreeTest } from "../typechain-types";
-import { generateZeros, calculateMerkleRootAndPath, checkMerkleProof, generateCommitment, calculateMerkleRootAndPathFromEvents, getVerifierWASM, convertCallData, calculateMerkleRootAndZKProof } from '../src/zktree'
+import { calculateMerkleRootAndPath, checkMerkleProof } from '../src/zktree'
 import crypto from 'crypto';
 import keccak256 from 'keccak256'
 
@@ -42,29 +40,26 @@ describe("ZKTree TX test", () => {
         let count = 0
         const elements = []
         while (count < txs.length) {
-
             const tx = txs[count]
             const hashedText = "0x" + keccak256(tx).toString('hex')
-            // sha256, sha1
-            // const hashedText2 = "0x" + crypto.createHash('sha256').update(tx).digest('hex')
+            // const hashedText = "0x" + crypto.createHash('sha256').update(tx).digest('hex')
+
             console.info("tx:", tx, hashedText)
-            // console.info("h2", tx, hashedText2)
-            const element = BigInt(hashedText) % 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffn;
+            const element = BigInt(hashedText) % 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffn
 
             ++count
-            // const element = BigInt(count)
-
             console.info(count, "commit:", element)
-            await zktreetest.commit(element);
-            const res = await zktreetest.getLastRoot();
-            // console.info("res:", res)
+            await zktreetest.commit(element)
+            const res1 = await zktreetest.getLastRoot()
+            const root1 = BigInt(res1)
 
             elements.push(element)
             const res2 = calculateMerkleRootAndPath(mimc, TREE_LEVELS, elements, element)
-            // const root = checkMerkleProof(mimc, TREE_LEVELS, res2.pathElements, res2.pathIndices, 3)
-            // console.info("res2:", res2)
+            const root2 = BigInt(res2.root)
+            // console.info("root1:", root1.toString(16))
+            // console.info("root2:", root2.toString(16))
 
-            assert.equal(ethers.BigNumber.from(res).toHexString(), ethers.BigNumber.from(res2.root).toHexString());
+            assert.equal(root1, root2)
         }
     })
 
