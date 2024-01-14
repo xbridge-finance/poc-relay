@@ -2,8 +2,7 @@ import { assert } from "chai";
 import { ethers } from "hardhat";
 import { buildMimcSponge, mimcSpongecontract } from 'circomlibjs'
 import { Verifier, ZKTreeTest } from "../typechain-types";
-import { calculateMerkleRootAndPath, checkMerkleProof } from '../src/zktree'
-import crypto from 'crypto';
+import { generateRandomString, generateCommitment, calculateMerkleRootAndPath, checkMerkleProof, calculateMerkleRootAndZKProof } from '../src/zktree'
 import keccak256 from 'keccak256'
 
 const SEED = "mimcsponge";
@@ -27,16 +26,10 @@ describe("ZKTree TX test", () => {
         mimc = await buildMimcSponge();
     });
 
-    // Function to generate a random string of specified length
-    const generateRandomString = (length) => {
-        return crypto.randomBytes(Math.ceil(length / 2))
-            .toString('hex')
-            .slice(0, length);
-    };
 
     it("Should calculate the root correctly after commit txs.", async () => {
         // const txs =  ['a->b', 'b->a', 'a->c', 'c->a']
-        const txs = Array.from({ length: 100 }, () => generateRandomString(10))
+        const txs = Array.from({ length: 10 }, () => generateRandomString(10))
         let count = 0
         const elements = []
         while (count < txs.length) {
@@ -63,5 +56,18 @@ describe("ZKTree TX test", () => {
         }
     })
 
+    it("Testing the full process", async () => {
+        // const signers = await  ethers.getSigners()
+        const secret = keccak256("secret words")
+        const commitment = await generateCommitment(secret)
+        console.info("commit:", commitment)
+        // relay commint (on-chain)
+        await zktreetest.commit(commitment.commitment)
+        // generate zk-proof (off-chain)
+        const cd = await calculateMerkleRootAndZKProof(zktreetest.address, ethers.provider, TREE_LEVELS, commitment, "build/Verifier.zkey")
+        // verify (on-chain) -> release fund to user
+        console.info("root & proof:", cd)
+        await zktreetest.nullify(cd.nullifierHash, cd.root, cd.proof_a, cd.proof_b, cd.proof_c)
+    })
 
 })

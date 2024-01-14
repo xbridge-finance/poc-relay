@@ -18,10 +18,14 @@ function calculateHash(mimc, left, right) {
     return BigNumber.from(mimc.F.toString(mimc.multiHash([left, right])))
 }
 
-export async function generateCommitment() {
+export function generateRandomString(size: number) {
+    return crypto.randomBytes(size).toString('hex')
+}
+
+export async function generateCommitment(secretHex?: any) {
     const mimc = await buildMimcSponge();
     const nullifier = BigNumber.from(crypto.randomBytes(31)).toString()
-    const secret = BigNumber.from(crypto.randomBytes(31)).toString()
+    const secret = BigNumber.from(secretHex ?? crypto.randomBytes(31)).toString()
     const commitment = mimc.F.toString(mimc.multiHash([nullifier, secret]))
     const nullifierHash = mimc.F.toString(mimc.multiHash([nullifier]))
     return {
@@ -138,8 +142,10 @@ export async function calculateMerkleRootAndZKProof(address: any, provider: any,
     const rootAndPath = await calculateMerkleRootAndPathFromEvents(mimc, address, provider, levels, commitment.commitment);
     const { proof, publicSignals } = await snarkjs.groth16.fullProve(
         {
-            nullifier: commitment.nullifier, secret: commitment.secret,
-            pathElements: rootAndPath.pathElements, pathIndices: rootAndPath.pathIndices
+            nullifier: commitment.nullifier,
+            secret: commitment.secret,
+            pathElements: rootAndPath.pathElements,
+            pathIndices: rootAndPath.pathIndices
         },
         getVerifierWASM(),
         zkey);
